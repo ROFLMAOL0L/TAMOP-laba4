@@ -4,6 +4,9 @@
 #include <list>
 #include <cstdlib>
 #include <vector>
+
+#include <cmath>
+
 #include "Matrix.h"
 
 using namespace std;
@@ -97,26 +100,27 @@ int Matrix::get_determinant(){
 }
 
 int Matrix::count_minor(int minor_size, vector <vector <int>> minor){
+    // Если матрица (минор) - 2 на, то считаем по формуле
     if (minor_size == 2){
         return (minor[0][0] * minor[1][1] - minor[1][0] * minor[0][1]);
-    } else {
+    } else {   // иначе
+        // Для каждого столбца
         for (int i = 0; i < minor_size; i++){
-            for (int j = 0; j < minor_size; j++){
-                vector <vector <int>> minor_2;
+            // первой строки
+            int j = 0;
+            // формируем минор по принципы (добавляем все, кроме элементов с j = 0 и текущим i)
+            vector <vector <int>> minor_2;
                 for (int i_1 = 0; i_1 < minor_size; i_1++){
                     if (i_1 != i){
                         minor_2.push_back(vector<int>());
-                        for (int j_1 = 0; j_1 < minor_size; j_1++){
-                            if (j_1 != j){
-                                minor_2[minor_2.size() - 1].push_back(minor[i_1][j_1]);
-                            }
+                        for (int j_1 = 1; j_1 < minor_size; j_1++){
+                            minor_2[minor_2.size() - 1].push_back(minor[i_1][j_1]);
                         }
                     }
                     
                 }
-                this->determinant += minor[i][j] * count_minor(minor_size - 1, minor_2);
-                //cout << this->determinant << endl;
-            }
+                // Добавляем к значению определителя элемент с индексом (i, j) умноженный на (-1) ^ (i + j) и на его минор (минор находится Рекурсивно)
+                this->determinant += pow(-1, i + j) * minor[i][j] * count_minor(minor_size - 1, minor_2);
         }
         return this->determinant;
     }
