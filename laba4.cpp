@@ -20,6 +20,10 @@ int main(){
     cout << "Rank = " << my_matrix->get_rank() << endl;
     // Вывод в консоль обусловленность матрциы
     cout << "Condition number = " << my_matrix->cond() << endl;
+
+    string a;
+    cin >> a;
+
     // Удаление объекта my_matrix
     delete my_matrix;
     return 1;
