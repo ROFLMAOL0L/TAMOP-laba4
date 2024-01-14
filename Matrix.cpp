@@ -20,10 +20,11 @@ Matrix::Matrix(string path)   // Инициализация объекта кл�
     catch (exception& err){
         cout << "Matrix input is incorrect. Make sure that the .txt file of your matrix ends with a blank line." << endl;
     }
-    vector <vector <int>> matrix;   // Двумерный массив со всеми числами матрицы
-    int order = 0;  // Порядок квадратной матрицы
-    int rank = 0;   // Ранг квадратной матрицы
-    // int obuslovlennost = 0;
+    this->determinant = this->count_minor(this->order, this->matrix);
+    // Расчет определителя при создании матрицы
+    if (!this->determinant == 0){
+        this->count_inverted_matrix();
+    }
 }
 
 void Matrix::read_matrix(string path=".\\matrix.txt") {
@@ -79,7 +80,7 @@ void Matrix::read_matrix(string path=".\\matrix.txt") {
     for (int i = 0; i < rows_amount; i++){
         matrix.push_back(vector<int>());
         for (int j = 0; j < columns_amount; j++){
-            this->matrix.at(i).push_back(file_input.at(i * columns_amount + j));
+            this->matrix[i].push_back(file_input.at(i * columns_amount + j));
         }
     }
 }
@@ -90,18 +91,23 @@ void Matrix::print_matrix(){
             if (j == 0){
                 cout << endl;
             }
-            cout << this->matrix.at(i).at(j) << " ";
+            cout << this->matrix[i][j] << " ";
         }
     }
+    cout << endl;
 }
 
 int Matrix::get_determinant(){
-    return this->count_minor(this->order, matrix);
+    return this->determinant;
 }
 
 int Matrix::count_minor(int minor_size, vector <vector <int>> minor){
-    // Если матрица (минор) - 2 на, то считаем по формуле
-    if (minor_size == 2){
+    // Если матрица (минор) - 1 на 1, возвращаем ее значение
+    if (minor_size == 1){
+        return minor[0][0];
+    }
+    // Если матрица (минор) - 2 на 2, то считаем по формуле
+    else if (minor_size == 2){
         return (minor[0][0] * minor[1][1] - minor[1][0] * minor[0][1]);
     } else {    // иначе
     int temp_sum = 0;
@@ -135,6 +141,158 @@ int Matrix::count_minor(int minor_size, vector <vector <int>> minor){
     }
 }
 
+int Matrix::get_rank(){
+    // Создаем копию матрицы для манипуляций для расчета ранга (методом Гаусса-Жордана)
+    vector <vector<float>> matrix_copy;
+    for (int i = 0; i < this->order; i++){
+        matrix_copy.push_back(vector <float>());
+        for (int j = 0; j < this->order; j++){
+            matrix_copy[i].push_back(static_cast <float>(matrix[i][j]));
+        }
+    }
+    // Для каждой строки
+    for (int i = 0; i < this->order - 1; i++){
+        // Для каждой оставшейся строки
+        for (int i_delta = i + 1; i_delta <this->order; i_delta++){
+            // Если элемент этой строки на главной диоганали не равен нулю
+            if (!matrix_copy[i][i] == 0){
+                // Вычисляем разницу в элементах чтобы вычесть из следующей строки прошлую, умноженную на эту разницу
+                float diff = matrix_copy[i_delta][i] / matrix_copy[i][i];
+                // Для каждого элемента строки
+                for (int j = 0; j < this->order; j++){
+                    // вычитаем элемент прошлой с таким же индексом, умноженный на разницу diff
+                    matrix_copy[i_delta][j] -= diff * matrix_copy[i][j];
+                }
+            } else {
+                // Если элемент главной диоганали равен нулю, нужно попытаться поменять местами строки ниже текущей.
+                for (int j = i + 1; j < this->order; j++){
+                    if (matrix_copy[j][i] != 0){   // если есть строка с ненулевым значением в данном столбце
+                        vector <float> new_line;   // временная переменная для перезаписи значений
+                        new_line.clear();
+                        for (int q = 0; q < this->order; q++){   // перезапись значений
+                            new_line.push_back(matrix_copy[i][q]);
+                            matrix_copy[i][q] = matrix_copy[j][q];
+                            matrix_copy[j][q] = new_line[q];
+                        }
+                    }
+                }
+            }
+        }
+    }   // В конце получаем матрицу с нулями НИЖЕ главной диоганали
+
+    // Получаем нули ВЫШЕ главной диоганали
+    // Для каждой строки
+    for (int i = this->order - 1; i > 0; i--){
+        // Для каждой оставшейся строки
+        for (int i_delta = i - 1; i_delta >= 0; i_delta--){
+            // Если элемент этой строки на главной диоганали не равне нулю
+            if (!matrix_copy[i][i] == 0){
+                // Вычисляем разницу в элементах чтобы вычесть из следующей строки прошлую, умноженную на эту разницу
+                float diff = matrix_copy[i_delta][i] / matrix_copy[i][i];
+                // Для каждого элемента строки
+                for (int j = 0; j < this->order; j++){
+                    // вычитаем элемент прошлой с таким же индексом, умноженный на разницу diff
+                    matrix_copy[i_delta][j] -= diff * matrix_copy[i][j];
+                }
+            }
+        }
+    }
+    // Высчитываем ранг как количество ненулевых строк в копии матрицы matrix_copy
+    int temp_rank = 0;
+    for (int i = 0; i < this->order; i++){
+        if (!this->is_zero_line(matrix_copy[i])){
+            temp_rank++;
+        }
+    }
+    // А так же присваеваем значение ранга матрице
+    this->rank = temp_rank;
+    return this->rank;
+}
+
+bool Matrix::is_zero_line(vector<float> line){
+    bool flag = true;
+    for (int j = 0; j < this->order; j++){
+        if (line[j] != 0){   // если элемент строки - не ноль
+            flag = false;   // строка не нулевая
+        }
+    }
+    return flag;
+}
+
+void Matrix::print_inverted_matrix(){
+    for (int i = 0; i < this->order; i++){
+        for (int j = 0; j < this->order; j++){
+            if (j == 0){
+                cout << endl;
+            }
+            cout << this->inverted_matrix[i][j] << " ";
+        }
+    }
+}
+
+string Matrix::cond(){
+    // Если матрица вырожденная - она считается плохо обусловленной
+    if (this->determinant == 0){
+        return "inf";
+    }
+    // Преобразование самой матрицы в матрицу вида vector <vector <float>> для вычисление нормы
+    vector <vector <float>> A;
+    for (int i = 0; i < this->order; i++){
+        A.push_back(vector <float>());
+        for (int j = 0; j < this->order; j++){
+            A[i].push_back(static_cast <float> (this->matrix[i][j]));
+        }
+    }
+    // Вычисление числа обусловленности
+    return to_string(this->norm(A) * this->norm(this->inverted_matrix));
+}
+
+
+void Matrix::count_inverted_matrix(){
+    vector <vector <float>> inverted_a;
+    // Заполнение матрицы нулями
+    for (int i = 0; i < this->order; i++){
+        inverted_a.push_back(vector <float>());
+        for (int j = 0; j < this->order; j++){
+            inverted_a[i].push_back(0.0);
+        }
+    }
+    // Для каждой строки
+    for (int i = 0; i < this->order; i++){
+        // Для каждого столбца
+        for (int j = 0; j < this->order; j++){
+            // Объявляем минор
+            vector <vector<int>> temp_minor;
+            // Заполняем минор
+            for (int i_1 = 0; i_1 < this->order; i_1++){
+                if (i != i_1){
+                    temp_minor.push_back(vector <int>());
+                    for (int j_1 = 0; j_1 < this->order; j_1++){
+                        if (j != j_1){
+                            temp_minor[temp_minor.size() - 1].push_back(matrix[i_1][j_1]);
+                        }
+                    }
+                }
+            }
+            // Высчитываем значение обратной матрицы под индексом (i, j)
+            inverted_a[j][i] = (pow(-1, i + j)) * static_cast <float>(this->count_minor(this->order - 1, temp_minor)) * (1 / static_cast <float>(this->determinant));
+        }
+    }
+    // Присвоение полученной обратной матрицы объекту класса
+    this->inverted_matrix = inverted_a;
+}
+
+float Matrix::norm(vector< vector<float>> A){
+    float sum_of_squares = 0.0;
+    // Сумма квадратов всех элементов
+    for (int i = 0; i < this->order; i++){
+        for (int j = 0; j < this->order; j++){
+            sum_of_squares += pow(A[i][j], 2);
+        }
+    }
+    // Квадратный корень из этой суммы
+    return pow(sum_of_squares, 0.5);
+}
 
 Matrix::~Matrix()
 {
